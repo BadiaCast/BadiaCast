@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "BadiaCast",
+    "slug": "badiacast",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D0608"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.badiacast.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#0D0608"
+      },
+      "package": "com.badiacast.app",
+      "permissions": ["INTERNET", "FOREGROUND_SERVICE", "WAKE_LOCK"]
+    },
+    "web": {
+      "favicon": "./assets/logo.png"
+    }
+  }
+}
