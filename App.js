@@ -5,7 +5,7 @@ import {
   StatusBar, Image, ImageBackground, I18nManager, TextInput, Modal,
   KeyboardAvoidingView, Platform, ActivityIndicator, AppState,
 } from 'react-native';
-import { Audio } from 'expo-av';
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import Svg, { Path, Circle, Line, Polygon } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -20,31 +20,29 @@ const STORAGE_KEY = 'badiacast_signup_done';
 
 // ───────────────────────────── لوحة الألوان — بنفسجي ملكي فاخر ─────────────────────────────
 const C = {
-  bg:      '#14081F',  // بنفسجي-أسود غامق، خلفية رئيسية
-  bg2:     '#1C0E2B',  // بنفسجي غامق، خلفية الهيدر/التابات
-  card:    '#271438',  // بنفسجي متوسط الغمق، للبطاقات
-  card2:   '#2F1842',  // بنفسجي أفتح شوي، للتمييز
-  purple:  '#6B3FA0',  // بنفسجي ملكي ساطع
+  bg:      '#14081F',
+  bg2:     '#1C0E2B',
+  card:    '#271438',
+  card2:   '#2F1842',
+  purple:  '#6B3FA0',
   purpleDim: 'rgba(107,63,160,0.20)',
   gold:    '#C9A84C',
   gold2:   '#E8C87A',
   goldDim: 'rgba(201,168,76,0.14)',
-  live:    '#E84481',  // وردي-أحمر يناسب البنفسجي أكثر من الأحمر الصريح
+  live:    '#E84481',
   liveDim: 'rgba(232,68,129,0.20)',
   sand:    '#F5ECD7',
-  muted:   '#A593BE',  // بنفسجي فاتح مكتوم، للنصوص الثانوية
+  muted:   '#A593BE',
   muted2:  '#C2B3DA',
   white:   '#FDFAF5',
   border:  'rgba(201,168,76,0.18)',
   borderPurple: 'rgba(168,130,214,0.25)',
 };
 
-// حجم موحّد لكل أيقونات شريط التنقل والأقسام — يضمن تناسق بصري كامل
 const ICON_SIZE_TAB = 22;
 const ICON_SIZE_PILLAR = 19;
 const ICON_SIZE_SOCIAL = 19;
 
-// ───────────────────────────── أيقونات SVG (خط موحّد 1.8) ─────────────────────────────
 const STROKE = 1.8;
 const Icon = {
   Home: ({ color, size = ICON_SIZE_TAB }) => (
@@ -131,7 +129,6 @@ const Icon = {
   ),
 };
 
-// ───────────────────────────── مكوّنات صغيرة ─────────────────────────────
 function LiveDot({ size = 7 }) {
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -172,7 +169,6 @@ function Waveform({ active }) {
   );
 }
 
-// ───────────────────────────── نموذج التسجيل ─────────────────────────────
 function SignupModal({ visible, onClose }) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -276,25 +272,25 @@ function SignupModal({ visible, onClose }) {
 // ───────────────────────────── التطبيق ─────────────────────────────
 export default function App() {
   const [tab, setTab] = useState('home');
-  const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
-  const soundRef = useRef(null);
 
   const open = (url) => Linking.openURL(url).catch(() => {});
 
+  // مشغّل صوت احترافي (expo-audio) — يدعم البث الحقيقي بالخلفية عبر Foreground Service
+  const player = useAudioPlayer(STREAM_URL);
+  const status = useAudioPlayerStatus(player);
+  const playing = status?.playing ?? false;
+
   // إعداد وضع الصوت ليستمر بالخلفية حتى لو المستخدم خرج من التطبيق أو قفل الشاشة
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      staysActiveInBackground: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: false,
-      interruptionModeIOS: 1, // DoNotMix — يحافظ على البث شغّال بالخلفية
-      interruptionModeAndroid: 1, // DoNotMix
-      allowsRecordingIOS: false,
-      playThroughEarpieceAndroid: false,
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'doNotMix',
+      interruptionModeAndroid: 'doNotMix',
+      shouldRouteThroughEarpiece: false,
     });
-    return () => { if (soundRef.current) soundRef.current.unloadAsync(); };
   }, []);
 
   // يفحص إذا المستخدم سجّل أو تخطّى سابقاً، ويعرض النموذج مرة وحدة بس
@@ -312,25 +308,14 @@ export default function App() {
   const togglePlay = async () => {
     try {
       if (playing) {
-        if (soundRef.current) {
-          await soundRef.current.stopAsync();
-          await soundRef.current.unloadAsync();
-          soundRef.current = null;
-        }
-        setPlaying(false);
+        player.pause();
         return;
       }
       setLoading(true);
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: STREAM_URL },
-        { shouldPlay: true, staysActiveInBackground: true }
-      );
-      soundRef.current = sound;
-      setPlaying(true);
+      player.play();
       setLoading(false);
     } catch (e) {
       setLoading(false);
-      setPlaying(false);
       alert('تعذّر تشغيل البث، تأكد من اتصال الإنترنت وحاول مرة أخرى');
     }
   };
@@ -541,7 +526,6 @@ const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: C.bg },
   screen: { padding: 20, paddingBottom: 44 },
 
-  // Header
   header:        { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg2,
                    borderBottomWidth: 1, borderBottomColor: C.borderPurple,
                    paddingHorizontal: 18, paddingVertical: 12, gap: 12 },
@@ -554,7 +538,6 @@ const styles = StyleSheet.create({
                    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
   headerLiveTxt: { color: C.gold2, fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
 
-  // Tab bar
   tabBar:        { flexDirection: 'row', backgroundColor: C.bg2,
                    borderTopWidth: 1, borderTopColor: C.borderPurple, paddingBottom: 10, paddingTop: 10 },
   tabItem:       { flex: 1, alignItems: 'center', gap: 5, paddingVertical: 4 },
@@ -562,7 +545,6 @@ const styles = StyleSheet.create({
   tabLbl:        { fontSize: 10.5, color: C.muted, fontWeight: '500' },
   tabLblActive:  { color: C.gold, fontWeight: '700' },
 
-  // Hero — خلفية صورة الصحراء مع تظليل بنفسجي فاخر
   hero:        { borderRadius: 18, paddingVertical: 40, paddingHorizontal: 24,
                  borderWidth: 1, borderColor: C.borderPurple, alignItems: 'center', marginBottom: 16,
                  overflow: 'hidden' },
@@ -581,7 +563,6 @@ const styles = StyleSheet.create({
   btnGhost:    { borderWidth: 1, borderColor: C.borderPurple, paddingHorizontal: 26, paddingVertical: 13, borderRadius: 10 },
   btnGhostTxt: { color: C.sand, fontSize: 14.5, fontWeight: '500' },
 
-  // Quick card
   card:        { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.borderPurple, padding: 18 },
   row:         { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   liveBadge:   { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.liveDim,
@@ -594,7 +575,6 @@ const styles = StyleSheet.create({
                  borderRadius: 10, paddingVertical: 13 },
   playMiniTxt: { color: C.gold, fontSize: 14, fontWeight: '700' },
 
-  // Player
   playerCard:  { backgroundColor: C.card, borderRadius: 18, paddingVertical: 38, paddingHorizontal: 28,
                  borderWidth: 1, borderColor: C.borderPurple, alignItems: 'center' },
   ringWrap:    { alignItems: 'center', marginBottom: 26 },
@@ -619,12 +599,10 @@ const styles = StyleSheet.create({
   playBtnTxt:  { color: C.bg, fontWeight: '700', fontSize: 15.5 },
   streamNote:  { color: C.gold, fontSize: 12.5, textAlign: 'center', paddingHorizontal: 12, lineHeight: 19 },
 
-  // Section headers
   secLabel:    { fontSize: 10.5, color: C.gold, letterSpacing: 4, marginBottom: 11, fontWeight: '600' },
   secTitle:    { fontSize: 23, color: C.white, fontWeight: '700', marginBottom: 18, lineHeight: 33 },
   body:        { fontSize: 12.5, color: C.white, lineHeight: 23, marginBottom: 12 },
 
-  // Stats
   statsRow:    { flexDirection: 'row', borderWidth: 1, borderColor: C.borderPurple,
                  borderRadius: 12, overflow: 'hidden', marginVertical: 24 },
   statBox:     { flex: 1, backgroundColor: C.card, paddingVertical: 22, alignItems: 'center' },
@@ -632,14 +610,12 @@ const styles = StyleSheet.create({
   statNum:     { fontSize: 26, color: C.gold, fontWeight: '700' },
   statLbl:     { fontSize: 11.5, color: C.white, marginTop: 5 },
 
-  // Pillars — أيقونة بحجم موحّد 19px داخل صندوق موحّد 42x42
   pillar:      { flexDirection: 'row', gap: 14, marginBottom: 20, alignItems: 'flex-start' },
   pillarIcon:  { width: 42, height: 42, borderRadius: 10, borderWidth: 1, borderColor: C.borderPurple,
                  backgroundColor: C.purpleDim, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   pillarTitle: { color: C.gold, fontSize: 14.5, fontWeight: '700', marginBottom: 4 },
   pillarText:  { color: C.white, fontSize: 12.5, lineHeight: 19 },
 
-  // Contact — نفس صندوق الأيقونة الموحّد 40x40
   contactItem:    { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.card,
                     borderWidth: 1, borderColor: C.borderPurple, borderRadius: 12, padding: 16, marginBottom: 12 },
   contactIconBox: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: C.borderPurple,
@@ -653,7 +629,6 @@ const styles = StyleSheet.create({
   footerLogoImg: { width: 64, height: 64 },
   footer:        { color: C.muted, fontSize: 10.5, textAlign: 'center', marginTop: 12 },
 
-  // Signup Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(10,4,16,0.90)',
                   alignItems: 'center', justifyContent: 'center', padding: 24 },
   modalCard:    { width: '100%', maxWidth: 380, backgroundColor: C.card,
