@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Linking, Animated, StyleSheet, SafeAreaView,
-  StatusBar, Image, I18nManager, TextInput, Modal,
+  StatusBar, Image, ImageBackground, I18nManager, TextInput, Modal,
   KeyboardAvoidingView, Platform, ActivityIndicator, AppState,
 } from 'react-native';
 import { Audio } from 'expo-av';
@@ -345,7 +345,12 @@ export default function App() {
   // ── الرئيسية ──
   const HomeScreen = () => (
     <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
-      <View style={styles.hero}>
+      <ImageBackground
+        source={require('./assets/desert.jpg')}
+        style={styles.hero}
+        imageStyle={styles.heroBgImage}
+      >
+        <View style={styles.heroOverlay} />
         <Text style={styles.eyebrow}>BADIACAST · DIGITAL RADIO</Text>
 
         <Image source={require('./assets/logo.png')} style={styles.heroLogo} resizeMode="contain" />
@@ -353,8 +358,8 @@ export default function App() {
         <Text style={styles.slogan}>صوت البادية … ٢٤ ساعة</Text>
         <View style={styles.divider} />
         <Text style={styles.desc}>
-         منصة إعلامية رقمية تحتفي بتراث البادية السعودي والخليجي والعربي، عبر القصائد والشيلات والقصص والالوان الفنية الاصيلة،{'\n'}
-      
+          منصة إعلامية رقمية تحتفي بالتراث العربي والبدوي والخليجي،{'\n'}
+          عبر الموسيقى التراثية والشعر والقصص والبرامج الثقافية
         </Text>
 
         <View style={styles.ctaRow}>
@@ -365,7 +370,7 @@ export default function App() {
             <Text style={styles.btnGhostTxt}>اعرف أكثر</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ImageBackground>
 
       <View style={styles.card}>
         <View style={styles.row}>
@@ -427,12 +432,12 @@ export default function App() {
       <Text style={styles.secTitle}>صوت يحمل روح البادية إلى العالم</Text>
 
       <Text style={styles.body}>
-        بادية كاست منصة إعلامية رقمية مكرّسة لحفظ التراث السعودي والخليجي والعربي
+        بادية كاست منصة إعلامية رقمية مكرّسة لحفظ تراث البادية السعودي والخليجي والعربي
         وتعزيزه عبر تقنيات البث الحديثة
       </Text>
       <Text style={styles.body}>
-        تقدّم المنصة محتوى ثقافياً وترفيهياً أصيلاً، محافظةً على الهوية
-    والموروث
+        تقدّم المنصة محتوى ثقافيا وترفيهياً أصيلاً، محافظةً على الهوية
+      والموروث
       </Text>
 
       <View style={styles.statsRow}>
@@ -477,9 +482,9 @@ export default function App() {
 
       <Text style={[styles.secLabel, { marginTop: 30 }]}>منصات التواصل</Text>
       {[
-        { I: Icon.Instagram, label: 'انستغرام',  url: 'https://www.instagram.com/badiacastt' },
-        { I: Icon.X,         label: 'إكس',        url: 'https://x.com/badiacast' },
-        { I: Icon.YouTube,   label: 'يوتيوب',     url: 'https://youtube.com/@BadiaCast' },
+        { I: Icon.Instagram, label: 'Instagram',  url: 'https://www.instagram.com/badiacastt' },
+        { I: Icon.X,         label: 'X',        url: 'https://x.com/badiacast' },
+        { I: Icon.YouTube,   label: 'Youtube',     url: 'https://youtube.com/@BadiaCast' },
       ].map(({ I, label, url }, i) => (
         <TouchableOpacity key={i} style={styles.socialBtn} onPress={() => open(url)} activeOpacity={0.8}>
           <View style={styles.contactIconBox}><I color={C.gold} /></View>
@@ -519,7 +524,7 @@ export default function App() {
           return (
             <TouchableOpacity key={key} style={styles.tabItem} onPress={() => setTab(key)} activeOpacity={0.7}>
               {active && <View style={styles.tabIndicator} />}
-              <TIcon color={active ? C.gold : C.muted} />
+              <TIcon color={active ? C.gold : C.white} />
               <Text style={[styles.tabLbl, active && styles.tabLblActive]}>{label}</Text>
             </TouchableOpacity>
           );
@@ -540,10 +545,10 @@ const styles = StyleSheet.create({
   header:        { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg2,
                    borderBottomWidth: 1, borderBottomColor: C.borderPurple,
                    paddingHorizontal: 18, paddingVertical: 12, gap: 12 },
-  headerLogo:    { width: 44, height: 44 },
+  headerLogo:    { width: 95, height: 50 },
   headerText:    { flex: 1 },
   headerTitle:   { fontSize: 17, color: C.white, fontWeight: '700', textAlign: 'right' },
-  headerSub:     { fontSize: 9, color: C.muted, letterSpacing: 3, marginTop: 1, textAlign: 'right' },
+  headerSub:     { fontSize: 9, color: C.white, letterSpacing: 1, marginTop: 1, textAlign: 'right' },
   headerLive:    { flexDirection: 'row', alignItems: 'center', gap: 5,
                    backgroundColor: C.liveDim, borderWidth: 1, borderColor: 'rgba(232,68,129,0.5)',
                    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
@@ -557,14 +562,18 @@ const styles = StyleSheet.create({
   tabLbl:        { fontSize: 10.5, color: C.muted, fontWeight: '500' },
   tabLblActive:  { color: C.gold, fontWeight: '700' },
 
-  // Hero
-  hero:        { backgroundColor: C.card, borderRadius: 18, paddingVertical: 36, paddingHorizontal: 24,
-                 borderWidth: 1, borderColor: C.borderPurple, alignItems: 'center', marginBottom: 16 },
-  eyebrow:     { fontSize: 10, color: C.gold, letterSpacing: 4, marginBottom: 22, fontWeight: '600' },
-  heroLogo:    { width: 168, height: 168, marginBottom: 8 },
+  // Hero — خلفية صورة الصحراء مع تظليل بنفسجي فاخر
+  hero:        { borderRadius: 18, paddingVertical: 40, paddingHorizontal: 24,
+                 borderWidth: 1, borderColor: C.borderPurple, alignItems: 'center', marginBottom: 16,
+                 overflow: 'hidden' },
+  heroBgImage: { borderRadius: 17 },
+  heroOverlay: { ...StyleSheet.absoluteFillObject,
+                 backgroundColor: 'rgba(20,8,31,0.78)' },
+  eyebrow:     { fontSize: 9, color: C.gold, letterSpacing: 4, marginBottom: 22, fontWeight: '600' },
+  heroLogo:    { width: 200, height: 150, marginBottom: 8 },
   slogan:      { fontSize: 17, color: C.gold, marginTop: 6, textAlign: 'center', fontWeight: '600' },
   divider:     { width: 50, height: 1.5, backgroundColor: C.gold, opacity: 0.45, marginVertical: 18, borderRadius: 1 },
-  desc:        { fontSize: 13.5, color: C.muted2, textAlign: 'center', lineHeight: 23 },
+  desc:        { fontSize: 10.5, color: C.gold, textAlign: 'center', lineHeight: 23 },
   ctaRow:      { flexDirection: 'row', gap: 12, marginTop: 26 },
   btnGold:     { backgroundColor: C.gold, paddingHorizontal: 26, paddingVertical: 13, borderRadius: 10,
                  shadowColor: C.gold, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
@@ -592,14 +601,14 @@ const styles = StyleSheet.create({
   ring:        { width: 156, height: 156, borderRadius: 78, backgroundColor: '#0E0518',
                  borderWidth: 2, borderColor: C.gold, alignItems: 'center', justifyContent: 'center',
                  padding: 18, shadowColor: C.gold, shadowOpacity: 0.35, shadowRadius: 22, shadowOffset: { width: 0, height: 0 } },
-  ringLogo:    { width: '100%', height: '100%' },
+  ringLogo:    { width: '300%', height: '100%' },
   ringLive:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#190B26',
                  borderWidth: 1, borderColor: 'rgba(232,68,129,0.45)', borderRadius: 20,
                  paddingHorizontal: 14, paddingVertical: 5, marginTop: -13 },
   ringLiveTxt: { color: C.live, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  nowPlaying:  { fontSize: 10.5, color: C.gold, letterSpacing: 4, marginBottom: 9, fontWeight: '600' },
+  nowPlaying:  { fontSize: 15.5, color: C.gold, letterSpacing: 4, marginBottom: 9, fontWeight: '600' },
   stTitle:     { fontSize: 22, color: C.white, fontWeight: '700', textAlign: 'center', marginBottom: 5 },
-  stSub:       { fontSize: 12.5, color: C.muted, marginBottom: 26 },
+  stSub:       { fontSize: 12.5, color: C.white, marginBottom: 26 },
   waveform:    { flexDirection: 'row', alignItems: 'center', gap: 3, height: 52, marginBottom: 30 },
   waveBar:     { width: 3, borderRadius: 3, backgroundColor: C.gold },
   playBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
@@ -608,12 +617,12 @@ const styles = StyleSheet.create({
                  shadowColor: C.gold, shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
   playBtnOn:   { backgroundColor: C.purple, shadowColor: C.purple },
   playBtnTxt:  { color: C.bg, fontWeight: '700', fontSize: 15.5 },
-  streamNote:  { color: C.muted, fontSize: 12.5, textAlign: 'center', paddingHorizontal: 12, lineHeight: 19 },
+  streamNote:  { color: C.gold, fontSize: 12.5, textAlign: 'center', paddingHorizontal: 12, lineHeight: 19 },
 
   // Section headers
   secLabel:    { fontSize: 10.5, color: C.gold, letterSpacing: 4, marginBottom: 11, fontWeight: '600' },
   secTitle:    { fontSize: 23, color: C.white, fontWeight: '700', marginBottom: 18, lineHeight: 33 },
-  body:        { fontSize: 13.5, color: C.muted2, lineHeight: 23, marginBottom: 12 },
+  body:        { fontSize: 12.5, color: C.white, lineHeight: 23, marginBottom: 12 },
 
   // Stats
   statsRow:    { flexDirection: 'row', borderWidth: 1, borderColor: C.borderPurple,
@@ -621,14 +630,14 @@ const styles = StyleSheet.create({
   statBox:     { flex: 1, backgroundColor: C.card, paddingVertical: 22, alignItems: 'center' },
   statBorder:  { borderRightWidth: 1, borderRightColor: C.borderPurple },
   statNum:     { fontSize: 26, color: C.gold, fontWeight: '700' },
-  statLbl:     { fontSize: 11.5, color: C.muted, marginTop: 5 },
+  statLbl:     { fontSize: 11.5, color: C.white, marginTop: 5 },
 
   // Pillars — أيقونة بحجم موحّد 19px داخل صندوق موحّد 42x42
   pillar:      { flexDirection: 'row', gap: 14, marginBottom: 20, alignItems: 'flex-start' },
   pillarIcon:  { width: 42, height: 42, borderRadius: 10, borderWidth: 1, borderColor: C.borderPurple,
                  backgroundColor: C.purpleDim, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  pillarTitle: { color: C.white, fontSize: 14.5, fontWeight: '700', marginBottom: 4 },
-  pillarText:  { color: C.muted, fontSize: 12.5, lineHeight: 19 },
+  pillarTitle: { color: C.gold, fontSize: 14.5, fontWeight: '700', marginBottom: 4 },
+  pillarText:  { color: C.white, fontSize: 12.5, lineHeight: 19 },
 
   // Contact — نفس صندوق الأيقونة الموحّد 40x40
   contactItem:    { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.card,
