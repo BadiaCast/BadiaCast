@@ -2,15 +2,21 @@ import React, { useRef, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   Linking, Animated, StyleSheet, SafeAreaView,
-  StatusBar, Image, I18nManager,
+  StatusBar, Image, I18nManager, TextInput, Modal,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import Svg, { Path, Circle, Line, Polygon } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 I18nManager.forceRTL(true);
 
 // رابط البث المباشر الفعلي لبادية كاست (radio.co)
 const STREAM_URL = 'https://streams.radio.co/s3dde1064a/listen';
+
+// رابط استقبال بيانات التسجيل (Google Apps Script)
+const REGISTER_URL = 'https://script.google.com/macros/s/AKfycbzoHhr7Z26WL-1IESyowB6NTEdZ2AT6_mq_VtdNrCdhodQ8PkTIhochXuKwG7T2hmUP/exec';
+const STORAGE_KEY = 'badiacast_signup_done';
 
 const C = {
   bg: '#0D0608', bg2: '#130810', card: '#1C0D14', card2: '#170A11',
@@ -148,11 +154,113 @@ function Waveform({ active }) {
   );
 }
 
+// ───────────────────────────── نموذج التسجيل ─────────────────────────────
+function SignupModal({ visible, onClose }) {
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [sending, setSending] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const finish = async () => {
+    try { await AsyncStorage.setItem(STORAGE_KEY, 'true'); } catch (e) {}
+    onClose();
+  };
+
+  const handleSkip = () => finish();
+
+  const handleSubmit = async () => {
+    setErrorMsg('');
+    const emailTrim = email.trim();
+    const phoneTrim = phone.trim();
+
+    if (!emailTrim && !phoneTrim) {
+      setErrorMsg('عبّي البريد أو رقم الجوال، أو اضغط تخطي');
+      return;
+    }
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
+    if (emailTrim && !emailOk) {
+      setErrorMsg('تأكد من صيغة البريد الإلكتروني');
+      return;
+    }
+
+    setSending(true);
+    try {
+      await fetch(REGISTER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailTrim, phone: phoneTrim }),
+      });
+    } catch (e) {
+      // حتى لو فشل الاتصال، نكمل تجربة المستخدم بدون إزعاج
+    }
+    setSending(false);
+    finish();
+  };
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent statusBarTranslucent>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.modalOverlay}
+      >
+        <View style={styles.modalCard}>
+          <View style={styles.modalRing}>
+            <Image source={require('./assets/logo.png')} style={styles.modalLogo} resizeMode="contain" />
+          </View>
+
+          <Text style={styles.modalTitle}>انضم لعائلة بادية كاست</Text>
+          <Text style={styles.modalDesc}>
+            سجّل بريدك أو جوالك عشان توصلك آخر الأخبار والبرامج الجديدة
+          </Text>
+
+          <TextInput
+            style={styles.modalInput}
+            placeholder="البريد الإلكتروني"
+            placeholderTextColor={C.muted}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            textAlign="right"
+          />
+          <TextInput
+            style={styles.modalInput}
+            placeholder="رقم الجوال"
+            placeholderTextColor={C.muted}
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            textAlign="right"
+          />
+
+          {!!errorMsg && <Text style={styles.modalError}>{errorMsg}</Text>}
+
+          <TouchableOpacity
+            style={styles.modalSubmitBtn}
+            onPress={handleSubmit}
+            disabled={sending}
+            activeOpacity={0.85}
+          >
+            {sending
+              ? <ActivityIndicator color={C.bg} />
+              : <Text style={styles.modalSubmitTxt}>تسجيل</Text>}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleSkip} activeOpacity={0.6} style={styles.modalSkipBtn}>
+            <Text style={styles.modalSkipTxt}>تخطّي</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 // ───────────────────────────── التطبيق ─────────────────────────────
 export default function App() {
   const [tab, setTab] = useState('home');
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
   const soundRef = useRef(null);
 
   const open = (url) => Linking.openURL(url).catch(() => {});
@@ -164,6 +272,18 @@ export default function App() {
       shouldDuckAndroid: true,
     });
     return () => { if (soundRef.current) soundRef.current.unloadAsync(); };
+  }, []);
+
+  // يفحص إذا المستخدم سجّل أو تخطّى سابقاً، ويعرض النموذج مرة وحدة بس
+  useEffect(() => {
+    (async () => {
+      try {
+        const done = await AsyncStorage.getItem(STORAGE_KEY);
+        if (!done) setShowSignup(true);
+      } catch (e) {
+        setShowSignup(true);
+      }
+    })();
   }, []);
 
   const togglePlay = async () => {
@@ -379,6 +499,8 @@ export default function App() {
           );
         })}
       </View>
+
+      <SignupModal visible={showSignup} onClose={() => setShowSignup(false)} />
     </SafeAreaView>
   );
 }
@@ -495,4 +617,27 @@ const styles = StyleSheet.create({
   footerLogo:    { alignItems: 'center', marginTop: 38, opacity: 0.85 },
   footerLogoImg: { width: 70, height: 70 },
   footer:        { color: C.muted, fontSize: 10.5, textAlign: 'center', marginTop: 12 },
+
+  // Signup Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(5,2,3,0.88)',
+                  alignItems: 'center', justifyContent: 'center', padding: 24 },
+  modalCard:    { width: '100%', maxWidth: 380, backgroundColor: C.card,
+                  borderRadius: 20, borderWidth: 1, borderColor: C.border,
+                  paddingVertical: 30, paddingHorizontal: 24, alignItems: 'center',
+                  shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 30, shadowOffset: { width: 0, height: 10 } },
+  modalRing:    { width: 84, height: 84, borderRadius: 42, backgroundColor: '#070304',
+                  borderWidth: 2, borderColor: C.gold, alignItems: 'center', justifyContent: 'center',
+                  padding: 12, marginBottom: 18 },
+  modalLogo:    { width: '100%', height: '100%' },
+  modalTitle:   { fontSize: 19, color: C.white, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+  modalDesc:    { fontSize: 13, color: C.muted2, textAlign: 'center', lineHeight: 20, marginBottom: 22 },
+  modalInput:   { width: '100%', backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
+                  borderRadius: 10, paddingHorizontal: 16, paddingVertical: 13, color: C.white,
+                  fontSize: 14, marginBottom: 12 },
+  modalError:   { color: '#E89090', fontSize: 12, textAlign: 'center', marginBottom: 8 },
+  modalSubmitBtn: { width: '100%', backgroundColor: C.gold, borderRadius: 12, paddingVertical: 15,
+                    alignItems: 'center', justifyContent: 'center', marginTop: 6, minHeight: 50 },
+  modalSubmitTxt: { color: C.bg, fontWeight: '700', fontSize: 15 },
+  modalSkipBtn: { marginTop: 16, padding: 6 },
+  modalSkipTxt: { color: C.muted, fontSize: 13, textDecorationLine: 'underline' },
 });
