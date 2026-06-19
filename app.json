@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0D0608"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.badiacast.app"
@@ -22,10 +24,19 @@
         "backgroundColor": "#0D0608"
       },
       "package": "com.badiacast.app",
-      "permissions": ["INTERNET", "FOREGROUND_SERVICE", "WAKE_LOCK"]
+      "permissions": [
+        "INTERNET",
+        "FOREGROUND_SERVICE",
+        "WAKE_LOCK"
+      ]
     },
     "web": {
       "favicon": "./assets/logo.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0eadfb74-da43-40b0-85cf-ab51f89ab1a9"
+      }
     }
   }
 }
