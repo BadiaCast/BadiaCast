@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   Linking, Animated, StyleSheet, SafeAreaView,
   StatusBar, Image, I18nManager, TextInput, Modal,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ActivityIndicator, AppState,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import Svg, { Path, Circle, Line, Polygon } from 'react-native-svg';
@@ -18,80 +18,98 @@ const STREAM_URL = 'https://streams.radio.co/s3dde1064a/listen';
 const REGISTER_URL = 'https://script.google.com/macros/s/AKfycbzoHhr7Z26WL-1IESyowB6NTEdZ2AT6_mq_VtdNrCdhodQ8PkTIhochXuKwG7T2hmUP/exec';
 const STORAGE_KEY = 'badiacast_signup_done';
 
+// ───────────────────────────── لوحة الألوان — بنفسجي ملكي فاخر ─────────────────────────────
 const C = {
-  bg: '#0D0608', bg2: '#130810', card: '#1C0D14', card2: '#170A11',
-  gold: '#C9A84C', gold2: '#E8C87A', goldDim: 'rgba(201,168,76,0.14)',
-  burg: '#8B1A2F', burgDim: 'rgba(139,26,47,0.22)',
-  sand: '#F5ECD7', muted: '#9C8D72', muted2: '#B8A98A', white: '#FDFAF5',
-  border: 'rgba(201,168,76,0.16)', borderSoft: 'rgba(201,168,76,0.08)',
-  live: '#E84040',
+  bg:      '#14081F',  // بنفسجي-أسود غامق، خلفية رئيسية
+  bg2:     '#1C0E2B',  // بنفسجي غامق، خلفية الهيدر/التابات
+  card:    '#271438',  // بنفسجي متوسط الغمق، للبطاقات
+  card2:   '#2F1842',  // بنفسجي أفتح شوي، للتمييز
+  purple:  '#6B3FA0',  // بنفسجي ملكي ساطع
+  purpleDim: 'rgba(107,63,160,0.20)',
+  gold:    '#C9A84C',
+  gold2:   '#E8C87A',
+  goldDim: 'rgba(201,168,76,0.14)',
+  live:    '#E84481',  // وردي-أحمر يناسب البنفسجي أكثر من الأحمر الصريح
+  liveDim: 'rgba(232,68,129,0.20)',
+  sand:    '#F5ECD7',
+  muted:   '#A593BE',  // بنفسجي فاتح مكتوم، للنصوص الثانوية
+  muted2:  '#C2B3DA',
+  white:   '#FDFAF5',
+  border:  'rgba(201,168,76,0.18)',
+  borderPurple: 'rgba(168,130,214,0.25)',
 };
 
-// ───────────────────────────── أيقونات SVG ─────────────────────────────
+// حجم موحّد لكل أيقونات شريط التنقل والأقسام — يضمن تناسق بصري كامل
+const ICON_SIZE_TAB = 22;
+const ICON_SIZE_PILLAR = 19;
+const ICON_SIZE_SOCIAL = 19;
+
+// ───────────────────────────── أيقونات SVG (خط موحّد 1.8) ─────────────────────────────
+const STROKE = 1.8;
 const Icon = {
-  Home: ({ color, size = 22 }) => (
+  Home: ({ color, size = ICON_SIZE_TAB }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M3 11.5L12 4l9 7.5" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M5.5 10v9a1 1 0 0 0 1 1H17.5a1 1 0 0 0 1-1v-9" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M9.5 20v-5.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V20" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M3 11.5L12 4l9 7.5" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M5.5 10v9a1 1 0 0 0 1 1H17.5a1 1 0 0 0 1-1v-9" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M9.5 20v-5.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V20" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   ),
-  Radio: ({ color, size = 22 }) => (
+  Radio: ({ color, size = ICON_SIZE_TAB }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="14" r="7" stroke={color} strokeWidth={1.8} />
+      <Circle cx="12" cy="14" r="7" stroke={color} strokeWidth={STROKE} />
       <Circle cx="12" cy="14" r="2" fill={color} />
-      <Path d="M8 5.5L12 8l4-2.5" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M8 5.5L12 8l4-2.5" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
       <Path d="M4.5 9.5a10 10 0 0 1 1.8-3" stroke={color} strokeWidth={1.6} strokeLinecap="round" opacity={0.6} />
       <Path d="M19.5 9.5a10 10 0 0 0-1.8-3" stroke={color} strokeWidth={1.6} strokeLinecap="round" opacity={0.6} />
     </Svg>
   ),
-  Compass: ({ color, size = 22 }) => (
+  Compass: ({ color, size = ICON_SIZE_TAB }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={1.8} />
+      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={STROKE} />
       <Polygon points="14.5,9.5 13,13 9.5,14.5 11,11" fill={color} stroke={color} strokeWidth={0.6} strokeLinejoin="round" />
     </Svg>
   ),
-  Mail: ({ color, size = 22 }) => (
+  Mail: ({ color, size = ICON_SIZE_TAB }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" stroke={color} strokeWidth={1.7} strokeLinejoin="round" />
-      <Path d="M3.5 7l8.5 6.5L20.5 7" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" stroke={color} strokeWidth={STROKE} strokeLinejoin="round" />
+      <Path d="M3.5 7l8.5 6.5L20.5 7" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   ),
-  Clock: ({ color, size = 18 }) => (
+  Clock: ({ color, size = ICON_SIZE_PILLAR }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={1.8} />
-      <Path d="M12 7v5.5l3.5 2" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={STROKE} />
+      <Path d="M12 7v5.5l3.5 2" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   ),
-  Mic: ({ color, size = 18 }) => (
+  Mic: ({ color, size = ICON_SIZE_PILLAR }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 14a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v4.5A3.5 3.5 0 0 0 12 14z" stroke={color} strokeWidth={1.7} />
-      <Path d="M6 11a6 6 0 0 0 12 0" stroke={color} strokeWidth={1.7} strokeLinecap="round" />
-      <Line x1="12" y1="17" x2="12" y2="21" stroke={color} strokeWidth={1.7} strokeLinecap="round" />
-      <Line x1="9" y1="21" x2="15" y2="21" stroke={color} strokeWidth={1.7} strokeLinecap="round" />
+      <Path d="M12 14a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v4.5A3.5 3.5 0 0 0 12 14z" stroke={color} strokeWidth={STROKE} />
+      <Path d="M6 11a6 6 0 0 0 12 0" stroke={color} strokeWidth={STROKE} strokeLinecap="round" />
+      <Line x1="12" y1="17" x2="12" y2="21" stroke={color} strokeWidth={STROKE} strokeLinecap="round" />
+      <Line x1="9" y1="21" x2="15" y2="21" stroke={color} strokeWidth={STROKE} strokeLinecap="round" />
     </Svg>
   ),
-  Star: ({ color, size = 18 }) => (
+  Star: ({ color, size = ICON_SIZE_PILLAR }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Polygon points="12,3 14.7,9.3 21.5,9.9 16.3,14.3 17.9,21 12,17.3 6.1,21 7.7,14.3 2.5,9.9 9.3,9.3"
-        stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+        stroke={color} strokeWidth={STROKE} strokeLinejoin="round" />
     </Svg>
   ),
-  Instagram: ({ color, size = 19 }) => (
+  Instagram: ({ color, size = ICON_SIZE_SOCIAL }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M7 2.5h10A4.5 4.5 0 0 1 21.5 7v10a4.5 4.5 0 0 1-4.5 4.5H7A4.5 4.5 0 0 1 2.5 17V7A4.5 4.5 0 0 1 7 2.5z" stroke={color} strokeWidth={1.6} />
-      <Circle cx="12" cy="12" r="4.2" stroke={color} strokeWidth={1.6} />
+      <Path d="M7 2.5h10A4.5 4.5 0 0 1 21.5 7v10a4.5 4.5 0 0 1-4.5 4.5H7A4.5 4.5 0 0 1 2.5 17V7A4.5 4.5 0 0 1 7 2.5z" stroke={color} strokeWidth={STROKE} />
+      <Circle cx="12" cy="12" r="4.2" stroke={color} strokeWidth={STROKE} />
       <Circle cx="17.2" cy="6.8" r="1.1" fill={color} />
     </Svg>
   ),
-  X: ({ color, size = 17 }) => (
+  X: ({ color, size = ICON_SIZE_SOCIAL }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M4 4l16 16M20 4L4 20" stroke={color} strokeWidth={1.9} strokeLinecap="round" />
+      <Path d="M4 4l16 16M20 4L4 20" stroke={color} strokeWidth={STROKE} strokeLinecap="round" />
     </Svg>
   ),
-  YouTube: ({ color, size = 19 }) => (
+  YouTube: ({ color, size = ICON_SIZE_SOCIAL }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M3 12c0-3.5.3-5 1-5.8C5 5 8 4.8 12 4.8s7 .2 8 1.4c.7.8 1 2.3 1 5.8s-.3 5-1 5.8c-1 1.2-4 1.4-8 1.4s-7-.2-8-1.4C3.3 17 3 15.5 3 12z" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+      <Path d="M3 12c0-3.5.3-5 1-5.8C5 5 8 4.8 12 4.8s7 .2 8 1.4c.7.8 1 2.3 1 5.8s-.3 5-1 5.8c-1 1.2-4 1.4-8 1.4s-7-.2-8-1.4C3.3 17 3 15.5 3 12z" stroke={color} strokeWidth={STROKE} strokeLinejoin="round" />
       <Polygon points="10,9 10,15 15.5,12" fill={color} />
     </Svg>
   ),
@@ -106,9 +124,9 @@ const Icon = {
       <Line x1="17" y1="4" x2="17" y2="20" stroke={color} strokeWidth={3.4} strokeLinecap="round" />
     </Svg>
   ),
-  ArrowLeft: ({ color, size = 17 }) => (
+  ArrowLeft: ({ color, size = 18 }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M19 12H5M11 6l-6 6 6 6" stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M19 12H5M11 6l-6 6 6 6" stroke={color} strokeWidth={STROKE} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   ),
 };
@@ -265,11 +283,16 @@ export default function App() {
 
   const open = (url) => Linking.openURL(url).catch(() => {});
 
+  // إعداد وضع الصوت ليستمر بالخلفية حتى لو المستخدم خرج من التطبيق أو قفل الشاشة
   useEffect(() => {
     Audio.setAudioModeAsync({
       staysActiveInBackground: true,
       playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
+      shouldDuckAndroid: false,
+      interruptionModeIOS: 1, // DoNotMix — يحافظ على البث شغّال بالخلفية
+      interruptionModeAndroid: 1, // DoNotMix
+      allowsRecordingIOS: false,
+      playThroughEarpieceAndroid: false,
     });
     return () => { if (soundRef.current) soundRef.current.unloadAsync(); };
   }, []);
@@ -298,7 +321,10 @@ export default function App() {
         return;
       }
       setLoading(true);
-      const { sound } = await Audio.Sound.createAsync({ uri: STREAM_URL }, { shouldPlay: true });
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: STREAM_URL },
+        { shouldPlay: true, staysActiveInBackground: true }
+      );
       soundRef.current = sound;
       setPlaying(true);
       setLoading(false);
@@ -327,8 +353,8 @@ export default function App() {
         <Text style={styles.slogan}>صوت البادية … ٢٤ ساعة</Text>
         <View style={styles.divider} />
         <Text style={styles.desc}>
-          منصة إعلامية رقمية تحتفي بالتراث العربي والبدوي والخليجي،{'\n'}
-          عبر الموسيقى التراثية والشعر والقصص والبرامج الثقافية
+         منصة إعلامية رقمية تحتفي بتراث البادية السعودي والخليجي والعربي، عبر القصائد والشيلات والقصص والالوان الفنية الاصيلة،{'\n'}
+      
         </Text>
 
         <View style={styles.ctaRow}>
@@ -388,7 +414,7 @@ export default function App() {
         </TouchableOpacity>
 
         <Text style={styles.streamNote}>
-          {playing ? '🔴 يبث الآن مباشرة' : 'اضغط للاستماع للبث المباشر'}
+          {playing ? '🔴 يبث الآن مباشرة — يستمر حتى لو خرجت من التطبيق' : 'اضغط للاستماع للبث المباشر'}
         </Text>
       </View>
     </ScrollView>
@@ -401,12 +427,12 @@ export default function App() {
       <Text style={styles.secTitle}>صوت يحمل روح البادية إلى العالم</Text>
 
       <Text style={styles.body}>
-        بادياكاست منصة إعلامية رقمية مكرّسة لحفظ التراث البدوي والخليجي والعربي
-        وتعزيزه عبر تقنيات البث الحديثة.
+        بادية كاست منصة إعلامية رقمية مكرّسة لحفظ التراث السعودي والخليجي والعربي
+        وتعزيزه عبر تقنيات البث الحديثة
       </Text>
       <Text style={styles.body}>
-        تقدّم المنصة محتوى ثقافياً وتعليمياً وترفيهياً أصيلاً، محافظةً على الهوية
-        وراسخةً في القيم والموروث.
+        تقدّم المنصة محتوى ثقافياً وترفيهياً أصيلاً، محافظةً على الهوية
+    والموروث
       </Text>
 
       <View style={styles.statsRow}>
@@ -424,7 +450,7 @@ export default function App() {
         { I: Icon.Star,  title: 'رؤيتنا',            text: 'أن نكون الوجهة الرقمية الرائدة للبث الثقافي البدوي والعربي' },
       ].map(({ I, title, text }, i) => (
         <View key={i} style={styles.pillar}>
-          <View style={styles.pillarIcon}><I color={C.gold} size={18} /></View>
+          <View style={styles.pillarIcon}><I color={C.gold} /></View>
           <View style={{ flex: 1 }}>
             <Text style={styles.pillarTitle}>{title}</Text>
             <Text style={styles.pillarText}>{text}</Text>
@@ -442,7 +468,7 @@ export default function App() {
       <Text style={styles.body}>للاستفسارات والمقترحات والشراكات الإعلامية</Text>
 
       <TouchableOpacity style={styles.contactItem} onPress={() => open('mailto:info@badiacast.com')} activeOpacity={0.8}>
-        <View style={styles.contactIconBox}><Icon.Mail color={C.gold} size={19} /></View>
+        <View style={styles.contactIconBox}><Icon.Mail color={C.gold} /></View>
         <View style={{ flex: 1 }}>
           <Text style={styles.cLabel}>البريد الإلكتروني</Text>
           <Text style={styles.cValue}>info@badiacast.com</Text>
@@ -493,7 +519,7 @@ export default function App() {
           return (
             <TouchableOpacity key={key} style={styles.tabItem} onPress={() => setTab(key)} activeOpacity={0.7}>
               {active && <View style={styles.tabIndicator} />}
-              <TIcon color={active ? C.gold : C.muted} size={21} />
+              <TIcon color={active ? C.gold : C.muted} />
               <Text style={[styles.tabLbl, active && styles.tabLblActive]}>{label}</Text>
             </TouchableOpacity>
           );
@@ -512,30 +538,30 @@ const styles = StyleSheet.create({
 
   // Header
   header:        { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg2,
-                   borderBottomWidth: 1, borderBottomColor: C.border,
-                   paddingHorizontal: 18, paddingVertical: 10, gap: 12 },
-  headerLogo:    { width: 38, height: 38 },
+                   borderBottomWidth: 1, borderBottomColor: C.borderPurple,
+                   paddingHorizontal: 18, paddingVertical: 12, gap: 12 },
+  headerLogo:    { width: 44, height: 44 },
   headerText:    { flex: 1 },
   headerTitle:   { fontSize: 17, color: C.white, fontWeight: '700', textAlign: 'right' },
   headerSub:     { fontSize: 9, color: C.muted, letterSpacing: 3, marginTop: 1, textAlign: 'right' },
   headerLive:    { flexDirection: 'row', alignItems: 'center', gap: 5,
-                   backgroundColor: C.burgDim, borderWidth: 1, borderColor: 'rgba(139,26,47,0.5)',
+                   backgroundColor: C.liveDim, borderWidth: 1, borderColor: 'rgba(232,68,129,0.5)',
                    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
   headerLiveTxt: { color: C.gold2, fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
 
   // Tab bar
   tabBar:        { flexDirection: 'row', backgroundColor: C.bg2,
-                   borderTopWidth: 1, borderTopColor: C.border, paddingBottom: 10, paddingTop: 8 },
-  tabItem:       { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 4 },
-  tabIndicator:  { position: 'absolute', top: -8, width: 28, height: 2.5, borderRadius: 2, backgroundColor: C.gold },
+                   borderTopWidth: 1, borderTopColor: C.borderPurple, paddingBottom: 10, paddingTop: 10 },
+  tabItem:       { flex: 1, alignItems: 'center', gap: 5, paddingVertical: 4 },
+  tabIndicator:  { position: 'absolute', top: -10, width: 28, height: 2.5, borderRadius: 2, backgroundColor: C.gold },
   tabLbl:        { fontSize: 10.5, color: C.muted, fontWeight: '500' },
   tabLblActive:  { color: C.gold, fontWeight: '700' },
 
   // Hero
   hero:        { backgroundColor: C.card, borderRadius: 18, paddingVertical: 36, paddingHorizontal: 24,
-                 borderWidth: 1, borderColor: C.border, alignItems: 'center', marginBottom: 16 },
+                 borderWidth: 1, borderColor: C.borderPurple, alignItems: 'center', marginBottom: 16 },
   eyebrow:     { fontSize: 10, color: C.gold, letterSpacing: 4, marginBottom: 22, fontWeight: '600' },
-  heroLogo:    { width: 190, height: 190, marginBottom: 8 },
+  heroLogo:    { width: 168, height: 168, marginBottom: 8 },
   slogan:      { fontSize: 17, color: C.gold, marginTop: 6, textAlign: 'center', fontWeight: '600' },
   divider:     { width: 50, height: 1.5, backgroundColor: C.gold, opacity: 0.45, marginVertical: 18, borderRadius: 1 },
   desc:        { fontSize: 13.5, color: C.muted2, textAlign: 'center', lineHeight: 23 },
@@ -543,14 +569,14 @@ const styles = StyleSheet.create({
   btnGold:     { backgroundColor: C.gold, paddingHorizontal: 26, paddingVertical: 13, borderRadius: 10,
                  shadowColor: C.gold, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   btnGoldTxt:  { color: C.bg, fontWeight: '700', fontSize: 14.5 },
-  btnGhost:    { borderWidth: 1, borderColor: C.border, paddingHorizontal: 26, paddingVertical: 13, borderRadius: 10 },
+  btnGhost:    { borderWidth: 1, borderColor: C.borderPurple, paddingHorizontal: 26, paddingVertical: 13, borderRadius: 10 },
   btnGhostTxt: { color: C.sand, fontSize: 14.5, fontWeight: '500' },
 
   // Quick card
-  card:        { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 18 },
+  card:        { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.borderPurple, padding: 18 },
   row:         { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  liveBadge:   { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.burgDim,
-                 borderWidth: 1, borderColor: 'rgba(232,64,64,0.35)', borderRadius: 20,
+  liveBadge:   { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.liveDim,
+                 borderWidth: 1, borderColor: 'rgba(232,68,129,0.4)', borderRadius: 20,
                  paddingHorizontal: 10, paddingVertical: 5 },
   liveTxt:     { color: C.live, fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   cardTitle:   { color: C.white, fontSize: 14, fontWeight: '600', flex: 1, textAlign: 'right' },
@@ -561,14 +587,14 @@ const styles = StyleSheet.create({
 
   // Player
   playerCard:  { backgroundColor: C.card, borderRadius: 18, paddingVertical: 38, paddingHorizontal: 28,
-                 borderWidth: 1, borderColor: C.border, alignItems: 'center' },
+                 borderWidth: 1, borderColor: C.borderPurple, alignItems: 'center' },
   ringWrap:    { alignItems: 'center', marginBottom: 26 },
-  ring:        { width: 156, height: 156, borderRadius: 78, backgroundColor: '#070304',
+  ring:        { width: 156, height: 156, borderRadius: 78, backgroundColor: '#0E0518',
                  borderWidth: 2, borderColor: C.gold, alignItems: 'center', justifyContent: 'center',
                  padding: 18, shadowColor: C.gold, shadowOpacity: 0.35, shadowRadius: 22, shadowOffset: { width: 0, height: 0 } },
   ringLogo:    { width: '100%', height: '100%' },
-  ringLive:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#0A0406',
-                 borderWidth: 1, borderColor: 'rgba(232,64,64,0.45)', borderRadius: 20,
+  ringLive:    { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#190B26',
+                 borderWidth: 1, borderColor: 'rgba(232,68,129,0.45)', borderRadius: 20,
                  paddingHorizontal: 14, paddingVertical: 5, marginTop: -13 },
   ringLiveTxt: { color: C.live, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
   nowPlaying:  { fontSize: 10.5, color: C.gold, letterSpacing: 4, marginBottom: 9, fontWeight: '600' },
@@ -580,9 +606,9 @@ const styles = StyleSheet.create({
                  backgroundColor: C.gold, borderRadius: 14, paddingVertical: 17, paddingHorizontal: 44,
                  marginBottom: 18, minWidth: 200,
                  shadowColor: C.gold, shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } },
-  playBtnOn:   { backgroundColor: C.burg, shadowColor: C.burg },
+  playBtnOn:   { backgroundColor: C.purple, shadowColor: C.purple },
   playBtnTxt:  { color: C.bg, fontWeight: '700', fontSize: 15.5 },
-  streamNote:  { color: C.muted, fontSize: 12.5, textAlign: 'center' },
+  streamNote:  { color: C.muted, fontSize: 12.5, textAlign: 'center', paddingHorizontal: 12, lineHeight: 19 },
 
   // Section headers
   secLabel:    { fontSize: 10.5, color: C.gold, letterSpacing: 4, marginBottom: 11, fontWeight: '600' },
@@ -590,54 +616,56 @@ const styles = StyleSheet.create({
   body:        { fontSize: 13.5, color: C.muted2, lineHeight: 23, marginBottom: 12 },
 
   // Stats
-  statsRow:    { flexDirection: 'row', borderWidth: 1, borderColor: C.border,
+  statsRow:    { flexDirection: 'row', borderWidth: 1, borderColor: C.borderPurple,
                  borderRadius: 12, overflow: 'hidden', marginVertical: 24 },
   statBox:     { flex: 1, backgroundColor: C.card, paddingVertical: 22, alignItems: 'center' },
-  statBorder:  { borderRightWidth: 1, borderRightColor: C.border },
+  statBorder:  { borderRightWidth: 1, borderRightColor: C.borderPurple },
   statNum:     { fontSize: 26, color: C.gold, fontWeight: '700' },
   statLbl:     { fontSize: 11.5, color: C.muted, marginTop: 5 },
 
-  // Pillars
+  // Pillars — أيقونة بحجم موحّد 19px داخل صندوق موحّد 42x42
   pillar:      { flexDirection: 'row', gap: 14, marginBottom: 20, alignItems: 'flex-start' },
-  pillarIcon:  { width: 42, height: 42, borderRadius: 10, borderWidth: 1, borderColor: C.border,
-                 backgroundColor: C.goldDim, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  pillarIcon:  { width: 42, height: 42, borderRadius: 10, borderWidth: 1, borderColor: C.borderPurple,
+                 backgroundColor: C.purpleDim, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   pillarTitle: { color: C.white, fontSize: 14.5, fontWeight: '700', marginBottom: 4 },
   pillarText:  { color: C.muted, fontSize: 12.5, lineHeight: 19 },
 
-  // Contact
+  // Contact — نفس صندوق الأيقونة الموحّد 40x40
   contactItem:    { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.card,
-                    borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 16, marginBottom: 12 },
-  contactIconBox: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: C.border,
-                    backgroundColor: C.goldDim, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+                    borderWidth: 1, borderColor: C.borderPurple, borderRadius: 12, padding: 16, marginBottom: 12 },
+  contactIconBox: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, borderColor: C.borderPurple,
+                    backgroundColor: C.purpleDim, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   cLabel:      { fontSize: 9.5, color: C.muted, letterSpacing: 1.5, marginBottom: 3 },
   cValue:      { color: C.white, fontSize: 13.5, flex: 1, fontWeight: '500' },
   socialBtn:   { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: C.card,
-                 borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, marginBottom: 10 },
+                 borderWidth: 1, borderColor: C.borderPurple, borderRadius: 12, padding: 14, marginBottom: 10 },
 
-  footerLogo:    { alignItems: 'center', marginTop: 38, opacity: 0.85 },
-  footerLogoImg: { width: 70, height: 70 },
+  footerLogo:    { alignItems: 'center', marginTop: 38, opacity: 0.9 },
+  footerLogoImg: { width: 64, height: 64 },
   footer:        { color: C.muted, fontSize: 10.5, textAlign: 'center', marginTop: 12 },
 
   // Signup Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(5,2,3,0.88)',
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(10,4,16,0.90)',
                   alignItems: 'center', justifyContent: 'center', padding: 24 },
   modalCard:    { width: '100%', maxWidth: 380, backgroundColor: C.card,
-                  borderRadius: 20, borderWidth: 1, borderColor: C.border,
+                  borderRadius: 20, borderWidth: 1, borderColor: C.borderPurple,
                   paddingVertical: 30, paddingHorizontal: 24, alignItems: 'center',
                   shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 30, shadowOffset: { width: 0, height: 10 } },
-  modalRing:    { width: 84, height: 84, borderRadius: 42, backgroundColor: '#070304',
+  modalRing:    { width: 84, height: 84, borderRadius: 42, backgroundColor: '#0E0518',
                   borderWidth: 2, borderColor: C.gold, alignItems: 'center', justifyContent: 'center',
                   padding: 12, marginBottom: 18 },
   modalLogo:    { width: '100%', height: '100%' },
   modalTitle:   { fontSize: 19, color: C.white, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   modalDesc:    { fontSize: 13, color: C.muted2, textAlign: 'center', lineHeight: 20, marginBottom: 22 },
-  modalInput:   { width: '100%', backgroundColor: C.bg, borderWidth: 1, borderColor: C.border,
+  modalInput:   { width: '100%', backgroundColor: C.bg, borderWidth: 1, borderColor: C.borderPurple,
                   borderRadius: 10, paddingHorizontal: 16, paddingVertical: 13, color: C.white,
                   fontSize: 14, marginBottom: 12 },
-  modalError:   { color: '#E89090', fontSize: 12, textAlign: 'center', marginBottom: 8 },
+  modalError:   { color: '#F0A8C5', fontSize: 12, textAlign: 'center', marginBottom: 8 },
   modalSubmitBtn: { width: '100%', backgroundColor: C.gold, borderRadius: 12, paddingVertical: 15,
                     alignItems: 'center', justifyContent: 'center', marginTop: 6, minHeight: 50 },
   modalSubmitTxt: { color: C.bg, fontWeight: '700', fontSize: 15 },
   modalSkipBtn: { marginTop: 16, padding: 6 },
   modalSkipTxt: { color: C.muted, fontSize: 13, textDecorationLine: 'underline' },
+
+  liveDot: { backgroundColor: C.live },
 });

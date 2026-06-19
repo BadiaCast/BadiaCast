@@ -9,34 +9,31 @@
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0D0608"
+      "backgroundColor": "#14081F"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.badiacast.app"
+      "bundleIdentifier": "com.badiacast.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#0D0608"
+        "backgroundColor": "#14081F"
       },
       "package": "com.badiacast.app",
       "permissions": [
         "INTERNET",
         "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "WAKE_LOCK"
       ]
     },
     "web": {
       "favicon": "./assets/logo.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "0eadfb74-da43-40b0-85cf-ab51f89ab1a9"
-      }
     }
   }
 }
