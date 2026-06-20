@@ -25,25 +25,25 @@ const STORAGE_KEY = 'badiacast_signup_done';
 const SKIP_COUNT_KEY = 'badiacast_signup_skip_count';
 const MAX_SIGNUP_PROMPTS = 5;
 
-// ───────────────────────────── لوحة الألوان — بنفسجي ملكي فاخر (نسخة معزّزة) ─────────────────────────────
+// ───────────────────────────── لوحة الألوان — بنفسجي ملكي فاخر (نسخة معزّزة v2) ─────────────────────────────
 const C = {
-  bg:      '#0F0817',
-  bg2:     '#170B25',
-  card:    '#20112F',
-  card2:   '#2A1640',
-  purple:  '#8B4FE3',
-  purpleDim: 'rgba(139,79,227,0.20)',
-  gold:    '#E3B23D',
-  gold2:   '#F5CE6E',
-  goldDim: 'rgba(227,178,61,0.14)',
+  bg:      '#0A0612',
+  bg2:     '#150A22',
+  card:    '#1D1130',
+  card2:   '#27173E',
+  purple:  '#9D5CF5',
+  purpleDim: 'rgba(157,92,245,0.22)',
+  gold:    '#FFB627',
+  gold2:   '#FFD166',
+  goldDim: 'rgba(255,182,39,0.16)',
   live:    '#FF3B57',
-  liveDim: 'rgba(255,59,87,0.20)',
+  liveDim: 'rgba(255,59,87,0.22)',
   sand:    '#F5ECD7',
   muted:   '#A696BE',
   muted2:  '#C7B7DE',
   white:   '#FDFAF5',
-  border:  'rgba(227,178,61,0.18)',
-  borderPurple: 'rgba(180,135,227,0.25)',
+  border:  'rgba(255,182,39,0.20)',
+  borderPurple: 'rgba(157,92,245,0.28)',
 };
 
 const ICON_SIZE_TAB = 22;

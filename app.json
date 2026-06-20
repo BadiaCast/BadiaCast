@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0F0817"
+      "backgroundColor": "#0A0612"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -26,7 +26,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#0F0817"
+        "backgroundColor": "#0A0612"
       },
       "package": "com.badiacast.app",
       "permissions": [
