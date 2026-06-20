@@ -5,7 +5,12 @@ import {
   StatusBar, Image, ImageBackground, I18nManager, TextInput, Modal,
   KeyboardAvoidingView, Platform, ActivityIndicator, AppState,
 } from 'react-native';
-import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
+import TrackPlayer, {
+  usePlaybackState,
+  State,
+  Capability,
+  AppKilledPlaybackBehavior,
+} from 'react-native-track-player';
 import Svg, { Path, Circle, Line, Polygon } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -277,20 +282,36 @@ export default function App() {
 
   const open = (url) => Linking.openURL(url).catch(() => {});
 
-  // مشغّل صوت احترافي (expo-audio) — يدعم البث الحقيقي بالخلفية عبر Foreground Service
-  const player = useAudioPlayer(STREAM_URL);
-  const status = useAudioPlayerStatus(player);
-  const playing = status?.playing ?? false;
+  // مشغّل صوت احترافي (react-native-track-player) — يدعم البث الحقيقي بالخلفية عبر Foreground Service
+  const playbackState = usePlaybackState();
+  const playing = playbackState.state === State.Playing;
 
-  // إعداد وضع الصوت ليستمر بالخلفية حتى لو المستخدم خرج من التطبيق أو قفل الشاشة
+  // إعداد المشغّل مرّة وحدة عند فتح التطبيق: صلاحيات الإشعار/شاشة القفل + مسار البث المباشر
   useEffect(() => {
-    setAudioModeAsync({
-      playsInSilentMode: true,
-      shouldPlayInBackground: true,
-      interruptionMode: 'doNotMix',
-      interruptionModeAndroid: 'doNotMix',
-      shouldRouteThroughEarpiece: false,
-    });
+    (async () => {
+      try {
+        await TrackPlayer.setupPlayer({ autoHandleInterruptions: true });
+
+        await TrackPlayer.updateOptions({
+          android: {
+            // يخلي البث مستمر حتى لو أندرويد قتل عملية التطبيق بالخلفية
+            appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
+          },
+          capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
+          compactCapabilities: [Capability.Play, Capability.Pause],
+        });
+
+        await TrackPlayer.add({
+          id: 'badiacast-live',
+          url: STREAM_URL,
+          title: 'بادية كاست',
+          artist: 'بث مباشر',
+          isLiveStream: true,
+        });
+      } catch (e) {
+        // المشغّل ممكن يكون مُجهّز مسبقًا (مثلاً بعد Fast Refresh أثناء التطوير) — نتجاهل هذا الخطأ تحديدًا
+      }
+    })();
   }, []);
 
   // يفحص إذا المستخدم سجّل أو تخطّى سابقاً، ويعرض النموذج مرة وحدة بس
@@ -308,11 +329,11 @@ export default function App() {
   const togglePlay = async () => {
     try {
       if (playing) {
-        player.pause();
+        await TrackPlayer.pause();
         return;
       }
       setLoading(true);
-      player.play();
+      await TrackPlayer.play();
       setLoading(false);
     } catch (e) {
       setLoading(false);
