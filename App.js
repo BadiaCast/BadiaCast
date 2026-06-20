@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   Linking, Animated, StyleSheet, SafeAreaView,
   StatusBar, Image, ImageBackground, I18nManager, TextInput, Modal,
-  KeyboardAvoidingView, Platform, ActivityIndicator, AppState,
+  KeyboardAvoidingView, Platform, ActivityIndicator, AppState, Easing,
 } from 'react-native';
 import TrackPlayer, {
   usePlaybackState,
@@ -22,26 +22,28 @@ const STREAM_URL = 'https://streams.radio.co/s3dde1064a/listen';
 // رابط استقبال بيانات التسجيل (Google Apps Script)
 const REGISTER_URL = 'https://script.google.com/macros/s/AKfycbzoHhr7Z26WL-1IESyowB6NTEdZ2AT6_mq_VtdNrCdhodQ8PkTIhochXuKwG7T2hmUP/exec';
 const STORAGE_KEY = 'badiacast_signup_done';
+const SKIP_COUNT_KEY = 'badiacast_signup_skip_count';
+const MAX_SIGNUP_PROMPTS = 5;
 
-// ───────────────────────────── لوحة الألوان — بنفسجي ملكي فاخر ─────────────────────────────
+// ───────────────────────────── لوحة الألوان — بنفسجي ملكي فاخر (نسخة معزّزة) ─────────────────────────────
 const C = {
-  bg:      '#14081F',
-  bg2:     '#1C0E2B',
-  card:    '#271438',
-  card2:   '#2F1842',
-  purple:  '#6B3FA0',
-  purpleDim: 'rgba(107,63,160,0.20)',
-  gold:    '#C9A84C',
-  gold2:   '#E8C87A',
-  goldDim: 'rgba(201,168,76,0.14)',
-  live:    '#E84481',
-  liveDim: 'rgba(232,68,129,0.20)',
+  bg:      '#0F0817',
+  bg2:     '#170B25',
+  card:    '#20112F',
+  card2:   '#2A1640',
+  purple:  '#8B4FE3',
+  purpleDim: 'rgba(139,79,227,0.20)',
+  gold:    '#E3B23D',
+  gold2:   '#F5CE6E',
+  goldDim: 'rgba(227,178,61,0.14)',
+  live:    '#FF3B57',
+  liveDim: 'rgba(255,59,87,0.20)',
   sand:    '#F5ECD7',
-  muted:   '#A593BE',
-  muted2:  '#C2B3DA',
+  muted:   '#A696BE',
+  muted2:  '#C7B7DE',
   white:   '#FDFAF5',
-  border:  'rgba(201,168,76,0.18)',
-  borderPurple: 'rgba(168,130,214,0.25)',
+  border:  'rgba(227,178,61,0.18)',
+  borderPurple: 'rgba(180,135,227,0.25)',
 };
 
 const ICON_SIZE_TAB = 22;
@@ -174,6 +176,37 @@ function Waveform({ active }) {
   );
 }
 
+// شعار يدور ببطء زي اسطوانة الفونوغراف القديمة — يدور وقت التشغيل بس، ويتوقف بمكانه وقت الإيقاف
+function SpinningLogo({ active, style, children }) {
+  const rotation = useRef(new Animated.Value(0)).current;
+  const loopRef = useRef(null);
+
+  useEffect(() => {
+    if (active) {
+      loopRef.current = Animated.loop(
+        Animated.timing(rotation, {
+          toValue: 1,
+          duration: 6000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      loopRef.current.start();
+    } else {
+      loopRef.current?.stop();
+    }
+    return () => loopRef.current?.stop();
+  }, [active]);
+
+  const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+
+  return (
+    <Animated.View style={[{ alignItems: 'center', justifyContent: 'center' }, style, { transform: [{ rotate: spin }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
 function SignupModal({ visible, onClose }) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -185,7 +218,15 @@ function SignupModal({ visible, onClose }) {
     onClose();
   };
 
-  const handleSkip = () => finish();
+  // التخطي ما يقفل النموذج للأبد — بس يسجّل عدد مرات التخطي، ويرجع يطلع بفتحات التطبيق الجاية لين يوصل الحد الأقصى
+  const handleSkip = async () => {
+    try {
+      const raw = await AsyncStorage.getItem(SKIP_COUNT_KEY);
+      const count = (parseInt(raw, 10) || 0) + 1;
+      await AsyncStorage.setItem(SKIP_COUNT_KEY, String(count));
+    } catch (e) {}
+    onClose();
+  };
 
   const handleSubmit = async () => {
     setErrorMsg('');
@@ -285,41 +326,42 @@ export default function App() {
   // مشغّل صوت احترافي (react-native-track-player) — يدعم البث الحقيقي بالخلفية عبر Foreground Service
   const playbackState = usePlaybackState();
   const playing = playbackState.state === State.Playing;
+  const setupPromiseRef = useRef(null);
 
   // إعداد المشغّل مرّة وحدة عند فتح التطبيق: صلاحيات الإشعار/شاشة القفل + مسار البث المباشر
   useEffect(() => {
-    (async () => {
-      try {
-        await TrackPlayer.setupPlayer({ autoHandleInterruptions: true });
+    setupPromiseRef.current = (async () => {
+      await TrackPlayer.setupPlayer({ autoHandleInterruptions: true });
 
-        await TrackPlayer.updateOptions({
-          android: {
-            // يخلي البث مستمر حتى لو أندرويد قتل عملية التطبيق بالخلفية
-            appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
-          },
-          capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
-          compactCapabilities: [Capability.Play, Capability.Pause],
-        });
+      await TrackPlayer.updateOptions({
+        android: {
+          // يخلي البث مستمر حتى لو أندرويد قتل عملية التطبيق بالخلفية
+          appKilledPlaybackBehavior: AppKilledPlaybackBehavior.ContinuePlayback,
+        },
+        capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
+        compactCapabilities: [Capability.Play, Capability.Pause],
+      });
 
-        await TrackPlayer.add({
-          id: 'badiacast-live',
-          url: STREAM_URL,
-          title: 'بادية كاست',
-          artist: 'بث مباشر',
-          isLiveStream: true,
-        });
-      } catch (e) {
-        // المشغّل ممكن يكون مُجهّز مسبقًا (مثلاً بعد Fast Refresh أثناء التطوير) — نتجاهل هذا الخطأ تحديدًا
-      }
+      await TrackPlayer.add({
+        id: 'badiacast-live',
+        url: STREAM_URL,
+        title: 'بادية كاست',
+        artist: 'بث مباشر',
+        artwork: require('./assets/logo.png'),
+        isLiveStream: true,
+      });
     })();
   }, []);
 
-  // يفحص إذا المستخدم سجّل أو تخطّى سابقاً، ويعرض النموذج مرة وحدة بس
+  // يفحص: لو سجّل فعلاً ما نعرضه أبد. لو تخطّى، نعرضه كل فتحة لين يوصل 5 مرات بس
   useEffect(() => {
     (async () => {
       try {
         const done = await AsyncStorage.getItem(STORAGE_KEY);
-        if (!done) setShowSignup(true);
+        if (done) return;
+        const raw = await AsyncStorage.getItem(SKIP_COUNT_KEY);
+        const skipCount = parseInt(raw, 10) || 0;
+        if (skipCount < MAX_SIGNUP_PROMPTS) setShowSignup(true);
       } catch (e) {
         setShowSignup(true);
       }
@@ -328,6 +370,10 @@ export default function App() {
 
   const togglePlay = async () => {
     try {
+      // ننتظر تخلص التهيئة فعليًا (يحل مشكلة الضغط السريع قبل ما يخلص التحضير)
+      // ولو فشلت التهيئة، هذا السطر يطلع نفس الخطأ الحقيقي بدل ما يبتلعه
+      await setupPromiseRef.current;
+
       if (playing) {
         await TrackPlayer.pause();
         return;
@@ -397,7 +443,9 @@ export default function App() {
       <View style={styles.playerCard}>
         <View style={styles.ringWrap}>
           <View style={styles.ring}>
-            <Image source={require('./assets/logo.png')} style={styles.ringLogo} resizeMode="contain" />
+            <SpinningLogo active={playing} style={{ width: '100%', height: '100%' }}>
+              <Image source={require('./assets/logo.png')} style={styles.ringLogo} resizeMode="contain" />
+            </SpinningLogo>
           </View>
           <View style={styles.ringLive}><LiveDot size={6} /><Text style={styles.ringLiveTxt}>مباشر</Text></View>
         </View>
