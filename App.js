@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   Linking, Animated, StyleSheet, SafeAreaView,
   StatusBar, Image, ImageBackground, I18nManager, TextInput, Modal,
-  KeyboardAvoidingView, Platform, ActivityIndicator, AppState, Easing,
+  KeyboardAvoidingView, Platform, ActivityIndicator, AppState, Easing, Alert,
 } from 'react-native';
 import TrackPlayer, {
   usePlaybackState,
@@ -13,8 +13,14 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import Svg, { Path, Circle, Line, Polygon } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import RNRestart from 'react-native-restart';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 
-I18nManager.forceRTL(true);
+WebBrowser.maybeCompleteAuthSession();
+
+// معرّف عميل OAuth الخاص بـ Android من Google Cloud Console (بادية كاست)
+const GOOGLE_ANDROID_CLIENT_ID = '504697907858-p9vqgkug25orphvd46kumveku59g8rs5.apps.googleusercontent.com';
 
 // رابط البث المباشر الفعلي لبادية كاست (radio.co)
 const STREAM_URL = 'https://streams.radio.co/s3dde1064a/listen';
@@ -24,6 +30,91 @@ const REGISTER_URL = 'https://script.google.com/macros/s/AKfycbzoHhr7Z26WL-1IESy
 const STORAGE_KEY = 'badiacast_signup_done';
 const SKIP_COUNT_KEY = 'badiacast_signup_skip_count';
 const MAX_SIGNUP_PROMPTS = 5;
+export const LANG_KEY = 'badiacast_language';
+
+// ───────────────────────────── النصوص — عربي / إنجليزي ─────────────────────────────
+const STRINGS = {
+  ar: {
+    tabHome: 'الرئيسية', tabPlayer: 'البث', tabAbout: 'من نحن', tabContact: 'تواصل',
+    headerTitle: 'بادية كاست', headerSub: 'BADIACAST', live: 'مباشر',
+    homeEyebrow: 'BADIACAST · DIGITAL RADIO',
+    homeSlogan: 'صوت البادية … ٢٤ ساعة',
+    homeDesc: 'منصة إعلامية رقمية تحتفي بالتراث العربي والبدوي والخليجي،\nعبر الموسيقى التراثية والشعر والقصص والبرامج الثقافية',
+    listenNow: 'استمع الآن', learnMore: 'اعرف أكثر',
+    homeCardTitle: 'بادية كاست — البث المباشر', openPlayer: 'افتح المشغّل',
+    nowPlaying: 'يُبث الآن', stationName: 'بادية كاست', stationSub: 'صوت البادية · بث مستمر ٢٤ ساعة',
+    loadingTxt: 'جاري التحميل…', stop: 'إيقاف', playStream: 'تشغيل البث',
+    notePlaying: '🔴 يبث الآن مباشرة — يستمر حتى لو خرجت من التطبيق',
+    noteIdle: 'اضغط للاستماع للبث المباشر',
+    aboutLabel: 'من نحن · ABOUT US',
+    aboutTitle: 'صوت يحمل روح البادية إلى العالم',
+    aboutBody1: 'بادية كاست منصة إعلامية رقمية مكرّسة لحفظ تراث البادية السعودي والخليجي والعربي وتعزيزه عبر تقنيات البث الحديثة',
+    aboutBody2: 'تقدّم المنصة محتوى ثقافيا وترفيهياً أصيلاً، محافظةً على الهوية والموروث',
+    stat1Num: '٢٤', stat1Lbl: 'ساعة بث', stat2Num: '١٠٠٪', stat2Lbl: 'محتوى أصيل',
+    pillar1Title: 'بث مستمر — ٢٤/٧', pillar1Text: 'محتوى لا ينقطع على مدار الساعة طوال أيام الأسبوع',
+    pillar2Title: 'رسالتنا', pillar2Text: 'الحفاظ على التراث العربي والترويج له عبر الإعلام الرقمي',
+    pillar3Title: 'رؤيتنا', pillar3Text: 'أن نكون الوجهة الرقمية الرائدة للبث الثقافي البدوي والعربي',
+    contactLabel: 'تواصل معنا · CONTACT',
+    contactTitle: 'نسعد بالتواصل معكم',
+    contactDesc: 'للاستفسارات والمقترحات والشراكات الإعلامية',
+    emailLabel: 'البريد الإلكتروني', socialTitle: 'منصات التواصل',
+    footer: '© ٢٠٢٦ بادية كاست — جميع الحقوق محفوظة',
+    signupTitle: 'انضم لعائلة بادية كاست',
+    signupDesc: 'سجّل بريدك أو جوالك عشان توصلك آخر الأخبار والبرامج الجديدة',
+    emailPlaceholder: 'البريد الإلكتروني', phonePlaceholder: 'رقم الجوال',
+    register: 'تسجيل', skip: 'تخطّي',
+    continueWithGoogle: 'المتابعة عبر جوجل',
+    orDivider: 'أو',
+    googleError: 'تعذّر تسجيل الدخول عبر جوجل، جرّب مرة ثانية',
+    errEmpty: 'عبّي البريد أو رقم الجوال، أو اضغط تخطي',
+    errEmail: 'تأكد من صيغة البريد الإلكتروني',
+    playErrorAlert: 'تعذّر تشغيل البث، تأكد من اتصال الإنترنت وحاول مرة أخرى',
+    langSwitchLabel: 'EN',
+    langConfirmTitle: 'تغيير اللغة',
+    langConfirmMsg: 'بيتم إعادة تشغيل التطبيق لتطبيق اللغة الجديدة',
+    cancel: 'إلغاء', continueTxt: 'متابعة',
+  },
+  en: {
+    tabHome: 'Home', tabPlayer: 'Player', tabAbout: 'About', tabContact: 'Contact',
+    headerTitle: 'BadiaCast', headerSub: 'DIGITAL RADIO', live: 'LIVE',
+    homeEyebrow: 'BADIACAST · DIGITAL RADIO',
+    homeSlogan: 'The Voice of the Desert … 24/7',
+    homeDesc: 'A digital media platform celebrating Arab, Bedouin, and Gulf heritage,\nthrough traditional music, poetry, stories, and cultural programs',
+    listenNow: 'Listen Now', learnMore: 'Learn More',
+    homeCardTitle: 'BadiaCast — Live Broadcast', openPlayer: 'Open Player',
+    nowPlaying: 'ON AIR', stationName: 'BadiaCast', stationSub: 'The Voice of the Desert · 24-Hour Broadcast',
+    loadingTxt: 'Loading…', stop: 'Stop', playStream: 'Play Stream',
+    notePlaying: '🔴 Live now — keeps playing even if you leave the app',
+    noteIdle: 'Tap to listen to the live broadcast',
+    aboutLabel: 'ABOUT US',
+    aboutTitle: 'A voice that carries the spirit of the desert to the world',
+    aboutBody1: 'BadiaCast is a digital media platform dedicated to preserving Saudi, Gulf, and Arab Bedouin heritage and promoting it through modern broadcasting technology.',
+    aboutBody2: 'The platform offers authentic cultural and entertainment content, staying true to our identity and heritage.',
+    stat1Num: '24', stat1Lbl: 'Hours On Air', stat2Num: '100%', stat2Lbl: 'Authentic Content',
+    pillar1Title: 'Continuous Broadcast — 24/7', pillar1Text: 'Uninterrupted content around the clock, every day of the week',
+    pillar2Title: 'Our Mission', pillar2Text: 'Preserving Arab heritage and promoting it through digital media',
+    pillar3Title: 'Our Vision', pillar3Text: 'To be the leading digital destination for Bedouin and Arab cultural broadcasting',
+    contactLabel: 'CONTACT',
+    contactTitle: "We'd love to hear from you",
+    contactDesc: 'For inquiries, suggestions, and media partnerships',
+    emailLabel: 'Email', socialTitle: 'Follow Us',
+    footer: '© 2026 BadiaCast — All rights reserved',
+    signupTitle: 'Join the BadiaCast Family',
+    signupDesc: 'Register your email or phone number to get the latest news and new programs',
+    emailPlaceholder: 'Email Address', phonePlaceholder: 'Phone Number',
+    register: 'Register', skip: 'Skip',
+    continueWithGoogle: 'Continue with Google',
+    orDivider: 'or',
+    googleError: "Couldn't sign in with Google, please try again",
+    errEmpty: 'Enter your email or phone number, or tap Skip',
+    errEmail: 'Please check your email format',
+    playErrorAlert: "Couldn't play the stream. Check your internet connection and try again.",
+    langSwitchLabel: 'عربي',
+    langConfirmTitle: 'Change Language',
+    langConfirmMsg: 'The app will restart to apply the new language',
+    cancel: 'Cancel', continueTxt: 'Continue',
+  },
+};
 
 // ───────────────────────────── لوحة الألوان — بنفسجي ملكي فاخر (نسخة معزّزة v2) ─────────────────────────────
 const C = {
@@ -207,11 +298,16 @@ function SpinningLogo({ active, style, children }) {
   );
 }
 
-function SignupModal({ visible, onClose }) {
+function SignupModal({ visible, onClose, t, isRTL }) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [sending, setSending] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+  });
 
   const finish = async () => {
     try { await AsyncStorage.setItem(STORAGE_KEY, 'true'); } catch (e) {}
@@ -228,34 +324,76 @@ function SignupModal({ visible, onClose }) {
     onClose();
   };
 
+  const registerEmail = async (emailValue, phoneValue = '') => {
+    try {
+      await fetch(REGISTER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailValue, phone: phoneValue }),
+      });
+    } catch (e) {
+      // حتى لو فشل الاتصال، نكمل تجربة المستخدم بدون إزعاج
+    }
+  };
+
   const handleSubmit = async () => {
     setErrorMsg('');
     const emailTrim = email.trim();
     const phoneTrim = phone.trim();
 
     if (!emailTrim && !phoneTrim) {
-      setErrorMsg('عبّي البريد أو رقم الجوال، أو اضغط تخطي');
+      setErrorMsg(t.errEmpty);
       return;
     }
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim);
     if (emailTrim && !emailOk) {
-      setErrorMsg('تأكد من صيغة البريد الإلكتروني');
+      setErrorMsg(t.errEmail);
       return;
     }
 
     setSending(true);
-    try {
-      await fetch(REGISTER_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailTrim, phone: phoneTrim }),
-      });
-    } catch (e) {
-      // حتى لو فشل الاتصال، نكمل تجربة المستخدم بدون إزعاج
-    }
+    await registerEmail(emailTrim, phoneTrim);
     setSending(false);
     finish();
   };
+
+  // يستقبل نتيجة تسجيل دخول قوقل، يجيب البريد تلقائيًا، ويسجّله بنفس طريقة التسجيل اليدوي
+  useEffect(() => {
+    if (!googleResponse) return;
+
+    if (googleResponse.type === 'success') {
+      (async () => {
+        try {
+          const accessToken = googleResponse.authentication?.accessToken;
+          const res = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          const profile = await res.json();
+          if (profile?.email) {
+            await registerEmail(profile.email);
+          }
+        } catch (e) {
+          setErrorMsg(t.googleError);
+        }
+        setGoogleLoading(false);
+        finish();
+      })();
+    } else if (googleResponse.type === 'error') {
+      setGoogleLoading(false);
+      setErrorMsg(t.googleError);
+    } else {
+      // المستخدم سكّر نافذة تسجيل الدخول بنفسه (cancel/dismiss)
+      setGoogleLoading(false);
+    }
+  }, [googleResponse]);
+
+  const handleGooglePress = () => {
+    setErrorMsg('');
+    setGoogleLoading(true);
+    promptGoogleAsync();
+  };
+
+  const inputAlign = isRTL ? 'right' : 'left';
 
   return (
     <Modal visible={visible} animationType="fade" transparent statusBarTranslucent>
@@ -268,29 +406,51 @@ function SignupModal({ visible, onClose }) {
             <Image source={require('./assets/logo.png')} style={styles.modalLogo} resizeMode="contain" />
           </View>
 
-          <Text style={styles.modalTitle}>انضم لعائلة بادية كاست</Text>
+          <Text style={styles.modalTitle}>{t.signupTitle}</Text>
           <Text style={styles.modalDesc}>
-            سجّل بريدك أو جوالك عشان توصلك آخر الأخبار والبرامج الجديدة
+            {t.signupDesc}
           </Text>
+
+          <TouchableOpacity
+            style={styles.googleBtn}
+            onPress={handleGooglePress}
+            disabled={!googleRequest || googleLoading || sending}
+            activeOpacity={0.85}
+          >
+            {googleLoading
+              ? <ActivityIndicator color={C.bg} />
+              : (
+                <>
+                  <View style={styles.googleGIcon}><Text style={styles.googleGIconTxt}>G</Text></View>
+                  <Text style={styles.googleBtnTxt}>{t.continueWithGoogle}</Text>
+                </>
+              )}
+          </TouchableOpacity>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerTxt}>{t.orDivider}</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
           <TextInput
             style={styles.modalInput}
-            placeholder="البريد الإلكتروني"
+            placeholder={t.emailPlaceholder}
             placeholderTextColor={C.muted}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            textAlign="right"
+            textAlign={inputAlign}
           />
           <TextInput
             style={styles.modalInput}
-            placeholder="رقم الجوال"
+            placeholder={t.phonePlaceholder}
             placeholderTextColor={C.muted}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
-            textAlign="right"
+            textAlign={inputAlign}
           />
 
           {!!errorMsg && <Text style={styles.modalError}>{errorMsg}</Text>}
@@ -298,16 +458,16 @@ function SignupModal({ visible, onClose }) {
           <TouchableOpacity
             style={styles.modalSubmitBtn}
             onPress={handleSubmit}
-            disabled={sending}
+            disabled={sending || googleLoading}
             activeOpacity={0.85}
           >
             {sending
               ? <ActivityIndicator color={C.bg} />
-              : <Text style={styles.modalSubmitTxt}>تسجيل</Text>}
+              : <Text style={styles.modalSubmitTxt}>{t.register}</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleSkip} activeOpacity={0.6} style={styles.modalSkipBtn}>
-            <Text style={styles.modalSkipTxt}>تخطّي</Text>
+            <Text style={styles.modalSkipTxt}>{t.skip}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -320,8 +480,36 @@ export default function App() {
   const [tab, setTab] = useState('home');
   const [loading, setLoading] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
+  const [lang, setLang] = useState('ar');
+  const isRTL = lang === 'ar';
+  const t = STRINGS[lang];
 
   const open = (url) => Linking.openURL(url).catch(() => {});
+
+  // قراءة اللغة المحفوظة (الافتراضي عربي لو ما فيه اختيار سابق)
+  useEffect(() => {
+    AsyncStorage.getItem(LANG_KEY).then((v) => {
+      if (v === 'en') setLang('en');
+    }).catch(() => {});
+  }, []);
+
+  // تبديل اللغة: يحفظ الاختيار، يحدّث اتجاه RTL/LTR على المستوى الأصلي، وبعدين يعيد تشغيل التطبيق فعليًا
+  // (لازم إعادة تشغيل حقيقية — تغيير اتجاه RTL ما ينعكس بصريًا بمجرد إعادة تحميل الكود فقط)
+  const toggleLanguage = () => {
+    const next = lang === 'ar' ? 'en' : 'ar';
+    Alert.alert(t.langConfirmTitle, t.langConfirmMsg, [
+      { text: t.cancel, style: 'cancel' },
+      {
+        text: t.continueTxt,
+        onPress: async () => {
+          try { await AsyncStorage.setItem(LANG_KEY, next); } catch (e) {}
+          I18nManager.allowRTL(true);
+          I18nManager.forceRTL(next === 'ar');
+          RNRestart.Restart();
+        },
+      },
+    ]);
+  };
 
   // مشغّل صوت احترافي (react-native-track-player) — يدعم البث الحقيقي بالخلفية عبر Foreground Service
   const playbackState = usePlaybackState();
@@ -383,15 +571,15 @@ export default function App() {
       setLoading(false);
     } catch (e) {
       setLoading(false);
-      alert('تعذّر تشغيل البث، تأكد من اتصال الإنترنت وحاول مرة أخرى');
+      alert(t.playErrorAlert);
     }
   };
 
   const TABS = [
-    { key: 'home',    label: 'الرئيسية', Icon: Icon.Home },
-    { key: 'player',  label: 'البث',     Icon: Icon.Radio },
-    { key: 'about',   label: 'من نحن',   Icon: Icon.Compass },
-    { key: 'contact', label: 'تواصل',    Icon: Icon.Mail },
+    { key: 'home',    label: t.tabHome,    Icon: Icon.Home },
+    { key: 'player',  label: t.tabPlayer,  Icon: Icon.Radio },
+    { key: 'about',   label: t.tabAbout,   Icon: Icon.Compass },
+    { key: 'contact', label: t.tabContact, Icon: Icon.Mail },
   ];
 
   // ── الرئيسية ──
@@ -403,35 +591,34 @@ export default function App() {
         imageStyle={styles.heroBgImage}
       >
         <View style={styles.heroOverlay} />
-        <Text style={styles.eyebrow}>BADIACAST · DIGITAL RADIO</Text>
+        <Text style={styles.eyebrow}>{t.homeEyebrow}</Text>
 
         <Image source={require('./assets/logo.png')} style={styles.heroLogo} resizeMode="contain" />
 
-        <Text style={styles.slogan}>صوت البادية … ٢٤ ساعة</Text>
+        <Text style={styles.slogan}>{t.homeSlogan}</Text>
         <View style={styles.divider} />
         <Text style={styles.desc}>
-          منصة إعلامية رقمية تحتفي بالتراث العربي والبدوي والخليجي،{'\n'}
-          عبر الموسيقى التراثية والشعر والقصص والبرامج الثقافية
+          {t.homeDesc}
         </Text>
 
         <View style={styles.ctaRow}>
           <TouchableOpacity style={styles.btnGold} onPress={() => setTab('player')} activeOpacity={0.85}>
-            <Text style={styles.btnGoldTxt}>استمع الآن</Text>
+            <Text style={styles.btnGoldTxt}>{t.listenNow}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.btnGhost} onPress={() => setTab('about')} activeOpacity={0.7}>
-            <Text style={styles.btnGhostTxt}>اعرف أكثر</Text>
+            <Text style={styles.btnGhostTxt}>{t.learnMore}</Text>
           </TouchableOpacity>
         </View>
       </ImageBackground>
 
       <View style={styles.card}>
         <View style={styles.row}>
-          <View style={styles.liveBadge}><LiveDot /><Text style={styles.liveTxt}>مباشر</Text></View>
-          <Text style={styles.cardTitle}>بادية كاست — البث المباشر</Text>
+          <View style={styles.liveBadge}><LiveDot /><Text style={styles.liveTxt}>{t.live}</Text></View>
+          <Text style={[styles.cardTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t.homeCardTitle}</Text>
         </View>
         <TouchableOpacity style={styles.playMini} onPress={() => setTab('player')} activeOpacity={0.85}>
           <Icon.Play color={C.gold} size={16} />
-          <Text style={styles.playMiniTxt}>افتح المشغّل</Text>
+          <Text style={styles.playMiniTxt}>{t.openPlayer}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -447,12 +634,12 @@ export default function App() {
               <Image source={require('./assets/logo.png')} style={styles.ringLogo} resizeMode="contain" />
             </SpinningLogo>
           </View>
-          <View style={styles.ringLive}><LiveDot size={6} /><Text style={styles.ringLiveTxt}>مباشر</Text></View>
+          <View style={styles.ringLive}><LiveDot size={6} /><Text style={styles.ringLiveTxt}>{t.live}</Text></View>
         </View>
 
-        <Text style={styles.nowPlaying}>يُبث الآن</Text>
-        <Text style={styles.stTitle}>بادية كاست</Text>
-        <Text style={styles.stSub}>صوت البادية · بث مستمر ٢٤ ساعة</Text>
+        <Text style={styles.nowPlaying}>{t.nowPlaying}</Text>
+        <Text style={styles.stTitle}>{t.stationName}</Text>
+        <Text style={styles.stSub}>{t.stationSub}</Text>
 
         <Waveform active={playing} />
 
@@ -463,17 +650,17 @@ export default function App() {
           activeOpacity={0.85}
         >
           {loading ? (
-            <Text style={styles.playBtnTxt}>جاري التحميل…</Text>
+            <Text style={styles.playBtnTxt}>{t.loadingTxt}</Text>
           ) : (
             <>
               {playing ? <Icon.Pause color={C.bg} size={20} /> : <Icon.Play color={C.bg} size={20} />}
-              <Text style={styles.playBtnTxt}>{playing ? 'إيقاف' : 'تشغيل البث'}</Text>
+              <Text style={styles.playBtnTxt}>{playing ? t.stop : t.playStream}</Text>
             </>
           )}
         </TouchableOpacity>
 
         <Text style={styles.streamNote}>
-          {playing ? '🔴 يبث الآن مباشرة — يستمر حتى لو خرجت من التطبيق' : 'اضغط للاستماع للبث المباشر'}
+          {playing ? t.notePlaying : t.noteIdle}
         </Text>
       </View>
     </ScrollView>
@@ -482,20 +669,18 @@ export default function App() {
   // ── من نحن ──
   const AboutScreen = () => (
     <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
-      <Text style={styles.secLabel}>من نحن · ABOUT US</Text>
-      <Text style={styles.secTitle}>صوت يحمل روح البادية إلى العالم</Text>
+      <Text style={styles.secLabel}>{t.aboutLabel}</Text>
+      <Text style={styles.secTitle}>{t.aboutTitle}</Text>
 
       <Text style={styles.body}>
-        بادية كاست منصة إعلامية رقمية مكرّسة لحفظ تراث البادية السعودي والخليجي والعربي
-        وتعزيزه عبر تقنيات البث الحديثة
+        {t.aboutBody1}
       </Text>
       <Text style={styles.body}>
-        تقدّم المنصة محتوى ثقافيا وترفيهياً أصيلاً، محافظةً على الهوية
-      والموروث
+        {t.aboutBody2}
       </Text>
 
       <View style={styles.statsRow}>
-        {[['٢٤', 'ساعة بث'], ['١٠٠٪', 'محتوى أصيل']].map(([n, l], i) => (
+        {[[t.stat1Num, t.stat1Lbl], [t.stat2Num, t.stat2Lbl]].map(([n, l], i) => (
           <View key={i} style={[styles.statBox, i === 0 && styles.statBorder]}>
             <Text style={styles.statNum}>{n}</Text>
             <Text style={styles.statLbl}>{l}</Text>
@@ -504,9 +689,9 @@ export default function App() {
       </View>
 
       {[
-        { I: Icon.Clock, title: 'بث مستمر — ٢٤/٧', text: 'محتوى لا ينقطع على مدار الساعة طوال أيام الأسبوع' },
-        { I: Icon.Mic,   title: 'رسالتنا',          text: 'الحفاظ على التراث العربي والترويج له عبر الإعلام الرقمي' },
-        { I: Icon.Star,  title: 'رؤيتنا',            text: 'أن نكون الوجهة الرقمية الرائدة للبث الثقافي البدوي والعربي' },
+        { I: Icon.Clock, title: t.pillar1Title, text: t.pillar1Text },
+        { I: Icon.Mic,   title: t.pillar2Title, text: t.pillar2Text },
+        { I: Icon.Star,  title: t.pillar3Title, text: t.pillar3Text },
       ].map(({ I, title, text }, i) => (
         <View key={i} style={styles.pillar}>
           <View style={styles.pillarIcon}><I color={C.gold} /></View>
@@ -522,19 +707,19 @@ export default function App() {
   // ── تواصل ──
   const ContactScreen = () => (
     <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
-      <Text style={styles.secLabel}>تواصل معنا · CONTACT</Text>
-      <Text style={styles.secTitle}>نسعد بالتواصل معكم</Text>
-      <Text style={styles.body}>للاستفسارات والمقترحات والشراكات الإعلامية</Text>
+      <Text style={styles.secLabel}>{t.contactLabel}</Text>
+      <Text style={styles.secTitle}>{t.contactTitle}</Text>
+      <Text style={styles.body}>{t.contactDesc}</Text>
 
       <TouchableOpacity style={styles.contactItem} onPress={() => open('mailto:info@badiacast.com')} activeOpacity={0.8}>
         <View style={styles.contactIconBox}><Icon.Mail color={C.gold} /></View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cLabel}>البريد الإلكتروني</Text>
+          <Text style={styles.cLabel}>{t.emailLabel}</Text>
           <Text style={styles.cValue}>info@badiacast.com</Text>
         </View>
       </TouchableOpacity>
 
-      <Text style={[styles.secLabel, { marginTop: 30 }]}>منصات التواصل</Text>
+      <Text style={[styles.secLabel, { marginTop: 30 }]}>{t.socialTitle}</Text>
       {[
         { I: Icon.Instagram, label: 'Instagram',  url: 'https://www.instagram.com/badiacastt' },
         { I: Icon.X,         label: 'X',        url: 'https://x.com/badiacast' },
@@ -550,7 +735,7 @@ export default function App() {
       <View style={styles.footerLogo}>
         <Image source={require('./assets/logo.png')} style={styles.footerLogoImg} resizeMode="contain" />
       </View>
-      <Text style={styles.footer}>© ٢٠٢٦ بادية كاست — جميع الحقوق محفوظة</Text>
+      <Text style={styles.footer}>{t.footer}</Text>
     </ScrollView>
   );
 
@@ -561,10 +746,13 @@ export default function App() {
       <View style={styles.header}>
         <Image source={require('./assets/logo.png')} style={styles.headerLogo} resizeMode="contain" />
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>بادية كاست</Text>
-          <Text style={styles.headerSub}>BADIACAST</Text>
+          <Text style={[styles.headerTitle, { textAlign: isRTL ? 'right' : 'left' }]}>{t.headerTitle}</Text>
+          <Text style={[styles.headerSub, { textAlign: isRTL ? 'right' : 'left' }]}>{t.headerSub}</Text>
         </View>
-        <View style={styles.headerLive}><LiveDot size={6} /><Text style={styles.headerLiveTxt}>مباشر</Text></View>
+        <View style={styles.headerLive}><LiveDot size={6} /><Text style={styles.headerLiveTxt}>{t.live}</Text></View>
+        <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage} activeOpacity={0.7}>
+          <Text style={styles.langBtnTxt}>{t.langSwitchLabel}</Text>
+        </TouchableOpacity>
       </View>
 
       {tab === 'home'    && <HomeScreen />}
@@ -585,7 +773,7 @@ export default function App() {
         })}
       </View>
 
-      <SignupModal visible={showSignup} onClose={() => setShowSignup(false)} />
+      <SignupModal visible={showSignup} onClose={() => setShowSignup(false)} t={t} isRTL={isRTL} />
     </SafeAreaView>
   );
 }
@@ -606,6 +794,9 @@ const styles = StyleSheet.create({
                    backgroundColor: C.liveDim, borderWidth: 1, borderColor: 'rgba(232,68,129,0.5)',
                    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
   headerLiveTxt: { color: C.gold2, fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
+  langBtn:       { borderWidth: 1, borderColor: C.borderPurple, borderRadius: 14,
+                   paddingHorizontal: 11, paddingVertical: 7 },
+  langBtnTxt:    { color: C.gold, fontSize: 11, fontWeight: '700' },
 
   tabBar:        { flexDirection: 'row', backgroundColor: C.bg2,
                    borderTopWidth: 1, borderTopColor: C.borderPurple, paddingBottom: 10, paddingTop: 10 },
@@ -710,6 +901,15 @@ const styles = StyleSheet.create({
   modalLogo:    { width: '100%', height: '100%' },
   modalTitle:   { fontSize: 19, color: C.white, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   modalDesc:    { fontSize: 13, color: C.muted2, textAlign: 'center', lineHeight: 20, marginBottom: 22 },
+  googleBtn:    { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  backgroundColor: C.white, borderRadius: 12, paddingVertical: 14, marginBottom: 18 },
+  googleGIcon:  { width: 20, height: 20, borderRadius: 10, backgroundColor: '#4285F4',
+                  alignItems: 'center', justifyContent: 'center' },
+  googleGIconTxt: { color: C.white, fontWeight: '800', fontSize: 12.5 },
+  googleBtnTxt: { color: '#1F1F1F', fontWeight: '700', fontSize: 14.5 },
+  dividerRow:   { flexDirection: 'row', alignItems: 'center', width: '100%', gap: 10, marginBottom: 18 },
+  dividerLine:  { flex: 1, height: 1, backgroundColor: C.borderPurple },
+  dividerTxt:   { color: C.muted, fontSize: 11.5 },
   modalInput:   { width: '100%', backgroundColor: C.bg, borderWidth: 1, borderColor: C.borderPurple,
                   borderRadius: 10, paddingHorizontal: 16, paddingVertical: 13, color: C.white,
                   fontSize: 14, marginBottom: 12 },
