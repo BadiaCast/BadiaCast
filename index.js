@@ -6,25 +6,24 @@ import TrackPlayer from 'react-native-track-player';
 import App, { LANG_KEY } from './App';
 import { PlaybackService } from './service';
 
-// لازم نحدد اتجاه RTL/LTR بناءً على اللغة المحفوظة *قبل* ما نعرض أي واجهة —
-// عشان أول رسمة بالشاشة تطلع بالاتجاه الصح من البداية بدون أي وميض أو قفزة
-async function bootstrap() {
-  try {
-    const savedLang = await AsyncStorage.getItem(LANG_KEY);
-    const isArabic = savedLang !== 'en'; // الافتراضي عربي لو ما فيه اختيار محفوظ
-    I18nManager.allowRTL(true);
-    I18nManager.forceRTL(isArabic);
-  } catch (e) {
-    I18nManager.allowRTL(true);
-    I18nManager.forceRTL(true);
-  }
-
-  // تسجيل المكوّن الرئيسي للتطبيق
-  registerRootComponent(App);
-}
-
-bootstrap();
+// تسجيل المكوّن الرئيسي فورًا ومتزامن — هذا ضروري وما يحتمل أي تأخير.
+// (تأخيره خلف عملية async كان يسبب كراش فوري عند فتح التطبيق بنسخة الإنتاج)
+registerRootComponent(App);
 
 // تسجيل خدمة التشغيل الخلفي — لازم تكون هنا بالضبط (نقطة الدخول)
-// مو داخل أي مكوّن، عشان أندرويد يقدر يشغّلها حتى لو التطبيق مقفول
 TrackPlayer.registerPlaybackService(() => PlaybackService);
+
+// نحفظ اتجاه RTL/LTR الصحيح على المستوى الأصلي بناءً على آخر لغة اختارها المستخدم.
+// هذا ما يأثر على الجلسة الحالية إطلاقًا (الاتجاه يكون اتحدد فعليًا بالطبقة الأصلية
+// قبل ما الكود يوصل هنا أصلاً) — بس يضمن صحة الإعداد لأول مرة يفتح فيها التطبيق
+// وللإقلاعات الجاية، بدون ما نأخّر تسجيل التطبيق نفسه
+AsyncStorage.getItem(LANG_KEY)
+  .then((savedLang) => {
+    const isArabic = savedLang !== 'en';
+    I18nManager.allowRTL(true);
+    I18nManager.forceRTL(isArabic);
+  })
+  .catch(() => {
+    I18nManager.allowRTL(true);
+    I18nManager.forceRTL(true);
+  });
